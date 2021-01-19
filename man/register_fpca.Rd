@@ -18,6 +18,7 @@ register_fpca(
   fpca_maxiter = 50,
   fpca_seed = 1988,
   fpca_error_thresh = 1e-04,
+  fpca_varExplained = 0.9,
   fpca_index_significantDigits = 4L,
   cores = 1L,
   ...
@@ -55,7 +56,9 @@ of all curves in \code{Y_template}. Defaults to NULL.}
 
 \item{max_iterations}{Number of iterations for overall algorithm. Defaults to 10.}
 
-\item{npc}{Number of principal components to calculate. Defaults to 1.}
+\item{npc}{Number of principal components to calculate. Defaults to 1.
+When \code{fpca_type = "two-step"} this argument is only used if
+\code{fpca_varExplained = NULL}.}
 
 \item{fpca_type}{One of \code{c("variationalEM","two-step")}.
 Defaults to \code{"variationalEM"}.}
@@ -71,6 +74,14 @@ pass to the \code{seed} argument of `bfpca()` or `fpca_gauss()`. Defaults to
 \item{fpca_error_thresh}{Only used if \code{fpca_type = "variationalEM"}.
 Number to pass to the \code{error_thresh} argument of `bfpca()` or
 `fpca_gauss()`. Defaults to 0.0001.}
+
+\item{fpca_varExplained}{Only used if \code{fpca_type = "two-step"}.
+The number of functional principal components (FPCs) in each FPCA step
+can either be specified based on their explained share of variance
+(\code{fpca_varExplained}) or by specifying the number directly as \code{npc}.
+Defaults to \code{fpca_varExplained = 0.9} to extract the number of FPCs that
+explains at least 90\% of the overall variance. \code{npc} is only used if
+\code{fpca_varExplained = NULL}.}
 
 \item{fpca_index_significantDigits}{Only used if \code{fpca_type = "two-step"}.
 Positive integer \code{>= 2}, stating the number of significant digits to which
@@ -131,7 +142,11 @@ Warping functions by default are forced to start and end on the diagonal to be
 domain-preserving. This behavior can be changed by setting
 \code{incompleteness} to some other value than NULL and a reasonable \code{lambda_inc} value.
 For further details see the accompanying vignette. \cr \cr
-By specifying \code{cores > 1} the registration call can be parallelized.
+By specifying \code{cores > 1} the registration call can be parallelized. \cr \cr
+For \code{fpca_type = "variationalEM"} the number of functional principal
+components (FPCs) can only be set using argument \code{npc}. For
+\code{fpca_type = "two-step"} the number of FPCs can also be chosen based on
+the explained share of variance (see argument \code{fpca_varExplained}).
 }
 \details{
 Requires input data \code{Y} to be a dataframe in long format with variables 
@@ -155,7 +170,7 @@ Y = simulate_unregistered_curves(I = 20, D = 200)
 reg = register_fpca(Y, npc = 2, family = "binomial",
                     fpca_type = "variationalEM", max_iterations = 5)
 # estimation based on Gertheiss et al. (2017)
-reg2 = register_fpca(Y, npc = 2, family = "binomial",
+reg2 = register_fpca(Y, fpca_varExplained = NULL, npc = 2, family = "binomial",
                      fpca_type = "two-step", max_iterations = 5,
                      fpca_index_significantDigits = 4)
 
@@ -200,8 +215,9 @@ ggplot(reg2b$Y, aes(x = t_hat, y = value, group = id)) +
 ### complete Gamma curves
 Y             = simulate_unregistered_curves(I = 20, D = 100)
 Y$value       = exp(Y$latent_mean)
-registr_gamma = register_fpca(Y, npc = 2, family = "gamma", fpca_type = "two-step",
-                              gradient = FALSE, max_iterations = 5)
+registr_gamma = register_fpca(Y, fpca_varExplained = NULL, npc = 2, family = "gamma",
+                              fpca_type = "two-step", gradient = FALSE,
+                              max_iterations = 5)
 }
 
 }

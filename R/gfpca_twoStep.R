@@ -5,7 +5,10 @@
 #' called by \code{\link{register_fpca}} when \code{fpca_type = "two-step"}. \cr \cr
 #' The method implements the `two-step approach` of Gertheiss et al. (2017)
 #' and is based on the approach of Hall et al. (2008) to estimate functional
-#' principal components. \cr \cr
+#' principal components.
+#' The number of functional principal components can either be chosen based
+#' on the explained share of variance (argument \code{var_explained}) or it can
+#' be specified directly (\code{npc}). \cr \cr
 #' This function is an adaptation of the implementation of Jan
 #' Gertheiss for Gertheiss et al. (2017), with focus on higher (RAM) efficiency
 #' for large data settings.
@@ -16,10 +19,19 @@
 #' underlying high-dimensional mixed model with continuous Poisson data based
 #' on the \code{\link{gamm4}} package.
 #' 
+#' If negative eigenvalues are present, the respective eigenfunctions are dropped
+#' and not considered further.
+#' 
 #' @param family One of \code{c("gaussian","binomial","gamma","poisson")}.
 #' Poisson data are rounded before performing
 #' the GFPCA to ensure integer data, see Details section below.
 #' Defaults to \code{"gaussian"}.
+#' @param var_explained,npc The number of functional principal components (FPCs)
+#' can either be specified based on their explained share of variance
+#' (\code{var_explained}) or by specifying the number directly as \code{npc}.
+#' Defaults to \code{var_explained = 0.9} to extract the number of FPCs that
+#' explains at least 90\% of the overall variance. \code{npc} is only used if
+#' \code{var_explained = NULL}.
 #' @param index_significantDigits Positive integer \code{>= 2}, stating the number
 #' of significant digits to which the index grid should be rounded. Coarsening the
 #' index grid is necessary since otherwise the covariance surface matrix
@@ -29,7 +41,8 @@
 #' @param estimation_accuracy One of \code{c("high","low")}. When set to \code{"low"},
 #' the mixed model estimation step in \code{lme4} is performed with lower
 #' accuracy, reducing computation time. Defaults to \code{"high"}.
-#' @param start_params Optional start values for gamm4.
+#' @param start_params Optional start values for gamm4. Not used if
+#' \code{var_explained != NULL}.
 #' @param periodic Only contained for full consistency with \code{fpca_gauss}
 #' and \code{bfpca}. If TRUE, returns the knots vector for periodic b-spline
 #' basis functions. Defaults to FALSE. This parameter does not change the
@@ -42,15 +55,16 @@
 #' \item{t_vec}{Time vector over which the mean \code{mu} was evaluated.
 #' The resolution is can be specified by setting \code{index_significantDigits}.}
 #' \item{knots}{Cutpoints for B-spline basis used to rebuild \code{alpha}.}
+#' \item{alpha}{Estimated population-level mean.}
+#' \item{mu}{Estimated population-level mean. Same value as \code{alpha} but included for compatibility
+#' with \code{refund.shiny} package.}
+#' \item{npc}{number of FPCs.}
+#' \item{var_explained}{Explained share of variance by the FPCs.}
 #' \item{efunctions}{\eqn{D \times npc} matrix of estimated FPC basis functions.}
 #' \item{evalues}{Estimated variance of the FPC scores.}
 #' \item{evalues_sum}{Sum of all (nonnegative) eigenvalues, before restricting
 #' the \code{evalues} vector to the first \code{npc} elements.}
-#' \item{npc}{number of FPCs.}
 #' \item{scores}{\eqn{I \times npc} matrix of estimated FPC scores.}
-#' \item{alpha}{Estimated population-level mean.}
-#' \item{mu}{Estimated population-level mean. Same value as \code{alpha} but included for compatibility
-#' with \code{refund.shiny} package.}
 #' \item{subject_coefs}{Always \code{NA} but included for full consistency
 #' with \code{fpca_gauss} and \code{bfpca}.} 
 #' \item{Yhat}{FPC approximation of subject-specific means.}
@@ -78,11 +92,11 @@
 #' @examples
 #' data(growth_incomplete)
 #' 
-#' fpca_obj = gfpca_twoStep(Y = growth_incomplete, npc = 2, family = "gaussian")
+#' fpca_obj = gfpca_twoStep(Y = growth_incomplete, var_explained = 0.8, family = "gaussian")
 #' plot(fpca_obj)
 #' 
-gfpca_twoStep = function (Y, family = "gaussian", npc = 1, Kt = 8,
-                          t_min = NULL, t_max = NULL,
+gfpca_twoStep = function (Y, family = "gaussian", var_explained = 0.9, npc = NULL,
+                          Kt = 8, t_min = NULL, t_max = NULL,
                           row_obj = NULL, index_significantDigits = 4L,
                           estimation_accuracy = "high", start_params = NULL,
                           periodic = FALSE,
@@ -93,6 +107,11 @@ gfpca_twoStep = function (Y, family = "gaussian", npc = 1, Kt = 8,
   } else if (family == "poisson" & any(Y$value < 0)) {
     stop("family = 'poisson' can only be applied to nonnegative data.")
   }
+  
+  if (!is.null(var_explained) && (var_explained < 0 | var_explained > 1))
+    stop("var_explained must be a number between 0 and 1.")
+  if (!is.null(npc) & !is.null(var_explained))
+    message("Note: Argument 'npc' is not used since var_explained != NULL.")
   
   # clean data
   if (is.null(row_obj)) {
@@ -171,16 +190,24 @@ gfpca_twoStep = function (Y, family = "gaussian", npc = 1, Kt = 8,
   fit.phi    = eigen_HMY$vectors
   
   # remove negative eigenvalues
-  if (any(fit.lambda[1:npc] < 0)) {
-    warning("The first 'npc' eigenvalues contained negative eigenvalues. These dimensions were removed from the output.")
+  if (any(fit.lambda < 0)) {
     wp         = which(fit.lambda > 0)
     fit.lambda = fit.lambda[wp]
     fit.phi    = fit.phi[,wp]
   }
   
-  efunctions  = fit.phi[,1:npc, drop = FALSE]
-  evalues     = fit.lambda[1:npc]
-  evalues_sum = sum(fit.lambda[fit.lambda > 0])
+  # choose the number of FPCs
+  evalues     = fit.lambda[fit.lambda > 0]
+  evalues_sum = sum(evalues)
+  if (!is.null(var_explained)) { # choose number of FPCs based on explained variance
+    evalues_varExplained = cumsum(evalues) / evalues_sum
+    npc = which(evalues_varExplained >= var_explained)[1]
+  }
+  efunctions       = fit.phi[,1:npc, drop = FALSE]
+  evalues          = fit.lambda[1:npc]
+  npc_varExplained = sum(evalues) / evalues_sum
+  message(paste0("Using the first ",npc," functional principal components which explain ",
+                 round(npc_varExplained * 100, 1),"% of the total variance."))
   
   # prepare data for mixed model estimation
   for (i in 1:npc) {
@@ -195,6 +222,10 @@ gfpca_twoStep = function (Y, family = "gaussian", npc = 1, Kt = 8,
   } else {
     family_mgcv = family
   }
+
+  # do not use 'start_params' if argument 'var_explained' is used
+  if (!is.null(start_params) && !is.null(var_explained))
+    start_params <- NULL
   
   # mixed model
   random.structure = paste(paste0("psi", 1:npc), collapse = "+")
@@ -248,10 +279,11 @@ gfpca_twoStep = function (Y, family = "gaussian", npc = 1, Kt = 8,
              knots         = knots,
              alpha         = matrix(alpha, ncol = 1), # return matrix for consistency with fpca_gauss()
              mu            = matrix(alpha, ncol = 1),
+             npc           = npc,
+             var_explained = npc_varExplained,
              efunctions    = efunctions,
              evalues       = evalues,
              evalues_sum   = evalues_sum,
-             npc           = npc,
              scores        = scores,
              subject_coefs = NA,
              Yhat          = fittedVals,

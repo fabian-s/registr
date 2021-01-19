@@ -50,7 +50,10 @@ test_that("gfpca_twoStep (Gaussian) output is a list with non-null items and cla
 	Y = simulate_functional_data(seed = 2020)$Y
 	Y$value = Y$latent_mean
 	
-	fpca_object = gfpca_twoStep(Y, npc = 2)
+	fpca_object  = gfpca_twoStep(Y, var_explained = 0.9)
+	fpca_object2 = gfpca_twoStep(Y, var_explained = NULL, npc = 2)
+	
+	expect_true(all.equal(fpca_object, fpca_object2))
 	
 	expect_equal(class(fpca_object), "fpca")
 	expect_equal(fpca_object$family, "gaussian")
@@ -65,7 +68,8 @@ test_that("gfpca_twoStep (Gaussian) output is a list with non-null items and cla
 test_that("gfpca_twoStep (Gaussian) output has correct number of dimensions",{
 	Y = simulate_functional_data(I = 100, D = 200, seed = 2020)$Y
 	Kt = 8
-	fpca_object = gfpca_twoStep(Y, npc = 2, Kt = Kt, index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 2, Kt = Kt,
+															index_significantDigits = 4)
 	
 	expect_equal(length(fpca_object$t_vec), 200)
 	expect_equal(dim(fpca_object$alpha), c(200, 1))
@@ -74,15 +78,16 @@ test_that("gfpca_twoStep (Gaussian) output has correct number of dimensions",{
 	expect_equal(dim(fpca_object$scores), c(length(unique(Y$id)), 2))
 	expect_equal(length(fpca_object$knots), Kt - 4)
 	
-	fpca_object = gfpca_twoStep(Y, npc = 1, Kt = Kt, index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 1, Kt = Kt,
+															index_significantDigits = 4)
 	expect_equal(dim(fpca_object$efunctions), c(200, 1))
 })
 
 test_that("gfpca_twoStep (Binomial) output has correct number of dimensions",{
 	Y = simulate_functional_data(I = 100, D = 200, seed = 2020)$Y
 	Kt = 8
-	fpca_object = gfpca_twoStep(Y, npc = 2, Kt = Kt, family = "binomial",
-															index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 2, Kt = Kt,
+															family = "binomial", index_significantDigits = 4)
 	
 	expect_equal(length(fpca_object$t_vec), 200)
 	expect_equal(dim(fpca_object$alpha), c(200, 1))
@@ -91,8 +96,8 @@ test_that("gfpca_twoStep (Binomial) output has correct number of dimensions",{
 	expect_equal(dim(fpca_object$scores), c(length(unique(Y$id)), 2))
 	expect_equal(length(fpca_object$knots), Kt - 4)
 	
-	fpca_object = gfpca_twoStep(Y, npc = 1, Kt = Kt, family = "binomial",
-															index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 1, Kt = Kt,
+															family = "binomial", index_significantDigits = 4)
 	expect_equal(dim(fpca_object$efunctions), c(200, 1))
 })
 
@@ -100,8 +105,8 @@ test_that("gfpca_twoStep (Gamma) output has correct number of dimensions",{
 	Y       = simulate_functional_data(I = 100, D = 200, seed = 2020)$Y
 	Y$value = Y$value + 1 # make data strictly positive for gamma family
 	Kt      = 8
-	fpca_object = gfpca_twoStep(Y, npc = 2, Kt = Kt, family = "gamma",
-															index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 2, Kt = Kt,
+															family = "gamma", index_significantDigits = 4)
 	
 	expect_equal(length(fpca_object$t_vec), 200)
 	expect_equal(dim(fpca_object$alpha), c(200, 1))
@@ -110,8 +115,8 @@ test_that("gfpca_twoStep (Gamma) output has correct number of dimensions",{
 	expect_equal(dim(fpca_object$scores), c(length(unique(Y$id)), 2))
 	expect_equal(length(fpca_object$knots), Kt - 4)
 	
-	fpca_object = gfpca_twoStep(Y, npc = 1, Kt = Kt, family = "gamma",
-															index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 1, Kt = Kt,
+															family = "gamma", index_significantDigits = 4)
 	expect_equal(dim(fpca_object$efunctions), c(200, 1))
 })
 
@@ -119,8 +124,8 @@ test_that("gfpca_twoStep (Poisson) output has correct number of dimensions",{
 	Y       = simulate_functional_data(I = 100, D = 200, seed = 2020)$Y
 	Y$value = Y$value + 1 # make data strictly positive for poisson family
 	Kt      = 8
-	fpca_object = gfpca_twoStep(Y, npc = 2, Kt = Kt, family = "poisson",
-															index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 2, Kt = Kt,
+															family = "poisson", index_significantDigits = 4)
 	
 	expect_equal(length(fpca_object$t_vec), 200)
 	expect_equal(dim(fpca_object$alpha), c(200, 1))
@@ -129,16 +134,27 @@ test_that("gfpca_twoStep (Poisson) output has correct number of dimensions",{
 	expect_equal(dim(fpca_object$scores), c(length(unique(Y$id)), 2))
 	expect_equal(length(fpca_object$knots), Kt - 4)
 	
-	fpca_object = gfpca_twoStep(Y, npc = 1, Kt = Kt, family = "poisson",
-															index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 1, Kt = Kt,
+															family = "poisson", index_significantDigits = 4)
 	expect_equal(dim(fpca_object$efunctions), c(200, 1))
 })
 
+test_that("gfpca_twoStep only uses 'npc' if 'var_explained = NULL'",{
+	Y = registr::growth_incomplete
+	
+	fpc1 = gfpca_twoStep(Y, var_explained = 0.1, npc = 1)
+	fpc2 = gfpca_twoStep(Y, var_explained = 0.1, npc = 3)
+	fpc3 = gfpca_twoStep(Y, var_explained = NULL, npc = 3)
+	
+	expect_true(identical(fpc1, fpc2))
+	expect_false(identical(fpc1, fpc3))
+})
 
 test_that("gfpca_twoStep (Gaussian) returns a correct knots vector when periodic = TRUE",{
 	Y = simulate_functional_data(I = 100, D = 200, seed = 2020)$Y
 	Kt = 8
-	fpca_object = gfpca_twoStep(Y, npc = 2, Kt = Kt, periodic = TRUE)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 2, Kt = Kt,
+															periodic = TRUE)
 	
 	expect_equal(length(fpca_object$knots), Kt - 1)
 })
@@ -146,7 +162,8 @@ test_that("gfpca_twoStep (Gaussian) returns a correct knots vector when periodic
 test_that("gfpca_twoStep (Gaussian) has correct number of dimensions when applied on incomplete curves",{
 	Y = registr::growth_incomplete
 	Kt = 8
-	fpca_object = gfpca_twoStep(Y, npc = 2, Kt = Kt, index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 2, Kt = Kt,
+															index_significantDigits = 4)
 	
 	expect_equal(length(fpca_object$t_vec), 30)
 	expect_equal(dim(fpca_object$alpha), c(30, 1))
@@ -155,7 +172,8 @@ test_that("gfpca_twoStep (Gaussian) has correct number of dimensions when applie
 	expect_equal(dim(fpca_object$scores), c(length(unique(Y$id)), 2))
 	expect_equal(length(fpca_object$knots), Kt - 4)
 	
-	fpca_object = gfpca_twoStep(Y, npc = 1, Kt = Kt, index_significantDigits = 4)
+	fpca_object = gfpca_twoStep(Y, var_explained = NULL, npc = 1, Kt = Kt,
+															index_significantDigits = 4)
 	expect_equal(dim(fpca_object$efunctions), c(30, 1))
 })
 

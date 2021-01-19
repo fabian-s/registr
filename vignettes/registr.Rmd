@@ -282,6 +282,11 @@ As @gertheiss_2017 outline, in comparison to purely marginal and thus
 biased GFPCA approaches, this two-step approach can be seen as a
 *"quick-fix" for the marginal approach* of @hall_2008 that *works well in practice*.
 
+In contrast to the variational EM based GFPCA approaches of @wrobel_2019
+(`fpca_gauss()` and `bfpca()`) the number of functional principal components
+can be adaptively chosen by `gfpca_twoStep()` based on the share of explained
+variance. See `?gfpca_twoStep()`.
+
 Our implementation is based on the codebase accompanying their paper which can
 be found at [github.com/jeff-goldsmith/gfpca](https://www.github.com/jeff-goldsmith/gfpca).
 We further adapted the functions to work more efficiently both regarding the 

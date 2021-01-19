@@ -7,7 +7,8 @@
 gfpca_twoStep(
   Y,
   family = "gaussian",
-  npc = 1,
+  var_explained = 0.9,
+  npc = NULL,
   Kt = 8,
   t_min = NULL,
   t_max = NULL,
@@ -27,7 +28,12 @@ Poisson data are rounded before performing
 the GFPCA to ensure integer data, see Details section below.
 Defaults to \code{"gaussian"}.}
 
-\item{npc}{Number of principal components to calculate. Defaults to 1.}
+\item{var_explained, npc}{The number of functional principal components (FPCs)
+can either be specified based on their explained share of variance
+(\code{var_explained}) or by specifying the number directly as \code{npc}.
+Defaults to \code{var_explained = 0.9} to extract the number of FPCs that
+explains at least 90\% of the overall variance. \code{npc} is only used if
+\code{var_explained = NULL}.}
 
 \item{Kt}{Number of B-spline basis functions used to estimate mean functions. Default is 8.}
 
@@ -49,7 +55,8 @@ always the case after some registration step). Defaults to 4. Set to
 the mixed model estimation step in \code{lme4} is performed with lower
 accuracy, reducing computation time. Defaults to \code{"high"}.}
 
-\item{start_params}{Optional start values for gamm4.}
+\item{start_params}{Optional start values for gamm4. Not used if
+\code{var_explained != NULL}.}
 
 \item{periodic}{Only contained for full consistency with \code{fpca_gauss}
 and \code{bfpca}. If TRUE, returns the knots vector for periodic b-spline
@@ -63,15 +70,16 @@ An object of class \code{fpca} containing:
 \item{t_vec}{Time vector over which the mean \code{mu} was evaluated.
 The resolution is can be specified by setting \code{index_significantDigits}.}
 \item{knots}{Cutpoints for B-spline basis used to rebuild \code{alpha}.}
-\item{efunctions}{\eqn{D \times npc} matrix of estimated FPC basis functions.}
-\item{evalues}{Estimated variance of the FPC scores.}
-\item{evalues_sum}{Sum of all eigenvalues, before restricting the \code{evalues}
-vector to the first \code{npc} elements.}
-\item{npc}{number of FPCs.}
-\item{scores}{\eqn{I \times npc} matrix of estimated FPC scores.}
 \item{alpha}{Estimated population-level mean.}
 \item{mu}{Estimated population-level mean. Same value as \code{alpha} but included for compatibility
 with \code{refund.shiny} package.}
+\item{npc}{number of FPCs.}
+\item{var_explained}{Explained share of variance by the FPCs.}
+\item{efunctions}{\eqn{D \times npc} matrix of estimated FPC basis functions.}
+\item{evalues}{Estimated variance of the FPC scores.}
+\item{evalues_sum}{Sum of all (nonnegative) eigenvalues, before restricting
+the \code{evalues} vector to the first \code{npc} elements.}
+\item{scores}{\eqn{I \times npc} matrix of estimated FPC scores.}
 \item{subject_coefs}{Always \code{NA} but included for full consistency
 with \code{fpca_gauss} and \code{bfpca}.} 
 \item{Yhat}{FPC approximation of subject-specific means.}
@@ -85,7 +93,10 @@ Used in the FPCA step for registering functional data,
 called by \code{\link{register_fpca}} when \code{fpca_type = "two-step"}. \cr \cr
 The method implements the `two-step approach` of Gertheiss et al. (2017)
 and is based on the approach of Hall et al. (2008) to estimate functional
-principal components. \cr \cr
+principal components.
+The number of functional principal components can either be chosen based
+on the explained share of variance (argument \code{var_explained}) or it can
+be specified directly (\code{npc}). \cr \cr
 This function is an adaptation of the implementation of Jan
 Gertheiss for Gertheiss et al. (2017), with focus on higher (RAM) efficiency
 for large data settings.
@@ -96,11 +107,14 @@ performing the GFPCA to ensure integer data. This is done to ensure reasonable
 computation times. Computation times tend to explode when estimating the
 underlying high-dimensional mixed model with continuous Poisson data based
 on the \code{\link{gamm4}} package.
+
+If negative eigenvalues are present, the respective eigenfunctions are dropped
+and not considered further.
 }
 \examples{
 data(growth_incomplete)
 
-fpca_obj = gfpca_twoStep(Y = growth_incomplete, npc = 2, family = "gaussian")
+fpca_obj = gfpca_twoStep(Y = growth_incomplete, var_explained = 0.8, family = "gaussian")
 plot(fpca_obj)
 
 }
