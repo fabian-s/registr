@@ -95,7 +95,7 @@
 #' Vector of mean squared differences between the (warped) index values
 #' (scaled to [0,1] based on the size of the observed domain)
 #' in the current and the previous iteration.
-#' Convergence is reached if this measure drops below 0.00001. \cr \cr
+#' Convergence is reached if this measure drops below 0.0001. \cr \cr
 #' \emph{registration_loss} \cr
 #' Vector of the loss in each iteration of the algorithm.
 #' Calculated in the registration step using the exponential family
@@ -207,7 +207,7 @@ register_fpca = function(Y, Kt = 8, Kh = 4, family = "gaussian",
   
   iter        = 0
   delta_index = rep(NA, max_iterations)
-  convergence_threshold = 0.00001
+  convergence_threshold = 0.0001
   
   while (iter == 0 ||
   			 (iter < max_iterations && delta_index[iter] > convergence_threshold)) {
